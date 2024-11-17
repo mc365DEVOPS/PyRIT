@@ -2,21 +2,19 @@
 # Licensed under the MIT license.
 
 import abc
-from pyrit.memory import MemoryInterface
 from pyrit.models import data_serializer_factory, PromptDataType
 from pyrit.prompt_converter import PromptConverter
 from pyrit.prompt_normalizer.prompt_response_converter_configuration import PromptResponseConverterConfiguration
 
 
 class NormalizerRequestPiece(abc.ABC):
-    _memory: MemoryInterface
 
     def __init__(
         self,
         *,
-        request_converters: list[PromptConverter],
         prompt_value: str,
         prompt_data_type: PromptDataType,
+        request_converters: list[PromptConverter] = [],
         metadata: str = None,
     ) -> None:
         """
@@ -29,7 +27,7 @@ class NormalizerRequestPiece(abc.ABC):
             request_converters (list[PromptConverter]): A list of PromptConverter objects.
             prompt_value (str): The prompt value.
             prompt_data_type (PromptDataType): The data type of the prompt.
-            metadata (str, optional): Additional metadata. Defaults to None.
+            metadata (str, Optional): Additional metadata. Defaults to None.
 
         Raises:
             ValueError: If prompt_converters is not a non-empty list of PromptConverter objects.
@@ -67,6 +65,7 @@ class NormalizerRequest:
         self,
         request_pieces: list[NormalizerRequestPiece],
         response_converters: list[PromptResponseConverterConfiguration] = [],
+        conversation_id: str = None,
     ):
         """
         Represents a normalizer request.
@@ -76,6 +75,7 @@ class NormalizerRequest:
 
         self.request_pieces = request_pieces
         self.response_converters = response_converters
+        self.conversation_id = conversation_id
 
     def validate(self):
         if not self.request_pieces or len(self.request_pieces) == 0:

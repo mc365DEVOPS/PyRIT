@@ -1,12 +1,14 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
+
 import logging
+from typing import Literal
+
 import azure.cognitiveservices.speech as speechsdk
 
-from typing import Literal
 from pyrit.common import default_values
-from pyrit.models.data_type_serializer import data_serializer_factory
-from pyrit.models.prompt_request_piece import PromptDataType
+from pyrit.models import data_serializer_factory
+from pyrit.models import PromptDataType
 from pyrit.prompt_converter import ConverterResult, PromptConverter
 
 logger = logging.getLogger(__name__)
@@ -54,9 +56,9 @@ class AzureSpeechTextToAudioConverter(PromptConverter):
         self._output_format = output_format
 
     def input_supported(self, input_type: PromptDataType) -> bool:
-        return input_type == "audio_path"
+        return input_type == "text"
 
-    async def convert_async(self, *, prompt: str, input_type: PromptDataType = "audio_path") -> ConverterResult:
+    async def convert_async(self, *, prompt: str, input_type: PromptDataType = "text") -> ConverterResult:
         if not self.input_supported(input_type):
             raise ValueError("Input type not supported")
 
@@ -64,8 +66,8 @@ class AzureSpeechTextToAudioConverter(PromptConverter):
             raise ValueError("Prompt was empty. Please provide valid input prompt.")
 
         audio_serializer = data_serializer_factory(data_type="audio_path", extension=self._output_format)
-        audio_serializer_file = str(audio_serializer.get_data_filename().resolve())
 
+        audio_serializer_file = None
         try:
             speech_config = speechsdk.SpeechConfig(
                 subscription=self._azure_speech_key,
@@ -79,11 +81,13 @@ class AzureSpeechTextToAudioConverter(PromptConverter):
                     speechsdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3
                 )
 
-            file_config = speechsdk.audio.AudioOutputConfig(filename=audio_serializer_file)
-            speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=file_config)
+            speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config)
 
             result = speech_synthesizer.speak_text_async(prompt).get()
             if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+                audio_data = result.audio_data
+                await audio_serializer.save_data(audio_data)
+                audio_serializer_file = str(audio_serializer.value)
                 logger.info(
                     "Speech synthesized for text [{}], and the audio was saved to [{}]".format(
                         prompt, audio_serializer_file

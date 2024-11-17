@@ -4,18 +4,15 @@
 import re
 from typing import Optional
 
-from pyrit.memory import MemoryInterface, DuckDBMemory
-from pyrit.models.prompt_request_piece import PromptRequestPiece
-from pyrit.score import Score
+from pyrit.models import PromptRequestPiece, Score
 from pyrit.score.scorer import Scorer
 
 
 class MarkdownInjectionScorer(Scorer):
 
-    def __init__(self, memory: MemoryInterface = None):
+    def __init__(self):
         self._category = "security"
         self.scorer_type = "true_false"
-        self._memory = memory if memory else DuckDBMemory()
 
     async def score_async(self, request_response: PromptRequestPiece, *, task: Optional[str] = None) -> list[Score]:
         """
@@ -24,7 +21,8 @@ class MarkdownInjectionScorer(Scorer):
         Args:
             request_response (PromptRequestPiece): The PromptRequestPiece object containing the text to check for
                 markdown injection.
-            task (str): The task based on which the text should be scored. Currently not supported for this scorer.
+            task (str): The task based on which the text should be scored (the original attacker model's objective).
+                Currently not supported for this scorer.
 
         Returns:
             list[Score]: A list of Score objects with the score value as True if markdown injection is detected,
@@ -52,6 +50,7 @@ class MarkdownInjectionScorer(Scorer):
                 score_rationale=None,
                 scorer_class_identifier=self.get_identifier(),
                 prompt_request_response_id=request_response.id,
+                task=task,
             )
         ]
 

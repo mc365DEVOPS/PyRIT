@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT license.
-
 from typing import Any, Optional
 
 from azure.storage.blob.aio import ContainerClient as AsyncContainerClient
@@ -17,8 +14,8 @@ from semantic_kernel.functions.kernel_function_decorator import kernel_function
 from pyrit.auth import AzureStorageAuth
 from pyrit.common import default_values
 from pyrit.models import PromptRequestResponse
-from pyrit.models.prompt_request_response import construct_response_from_request
-from pyrit.prompt_target.prompt_chat_target.prompt_chat_target import PromptChatTarget
+from pyrit.models import construct_response_from_request
+from pyrit.prompt_target import PromptChatTarget
 
 logger = logging.getLogger(__name__)
 
@@ -101,8 +98,6 @@ class SemanticKernelPluginAzureOpenAIPromptTarget(PromptChatTarget):
             temperature=temperature,
         )
 
-        super().__init__(memory=None)
-
     def send_prompt(self, *, prompt_request: PromptRequestResponse) -> PromptRequestResponse:
 
         raise NotImplementedError("SemanticKernelPluginPromptTarget only supports send_prompt_async")
@@ -175,7 +170,7 @@ class AzureStoragePlugin:
         self._sas_token = sas_token
         self._storage_client: AsyncContainerClient = None
 
-    async def _create_container_client_async(self):
+    async def _create_container_client_async(self) -> None:
         """Creates an asynchronous ContainerClient for Azure Storage. If a SAS token is provided via the
         AZURE_STORAGE_ACCOUNT_SAS_TOKEN environment variable or the init sas_token parameter, it will be used
         for authentication. Otherwise, a delegation SAS token will be created using Entra ID authentication."""

@@ -8,22 +8,17 @@ import requests
 from openai import BadRequestError
 import uuid
 
-from pyrit.exceptions.exception_classes import PyritException, pyrit_target_retry
-from pyrit.memory import DuckDBMemory, MemoryInterface
-from pyrit.models import Score
-from pyrit.models import PromptRequestPiece, PromptRequestResponse
+from pyrit.exceptions import PyritException, pyrit_target_retry
+from pyrit.models import PromptRequestPiece, PromptRequestResponse, Score
 from pyrit.prompt_target import PromptChatTarget, GandalfLevel
 from pyrit.score.scorer import Scorer
 
 
 class GandalfScorer(Scorer):
-    def __init__(
-        self, level: GandalfLevel, chat_target: PromptChatTarget = None, memory: MemoryInterface = None
-    ) -> None:
+    def __init__(self, level: GandalfLevel, chat_target: PromptChatTarget = None) -> None:
+        self._prompt_target = chat_target
         self._defender = level.value
         self._endpoint = "https://gandalf.lakera.ai/api/guess-password"
-        self._chat_target = chat_target
-        self._memory = memory if memory else DuckDBMemory()
         self.scorer_type = "true_false"
 
     @pyrit_target_retry
@@ -47,7 +42,7 @@ class GandalfScorer(Scorer):
         )
 
         scoring_conversation_id = str(uuid.uuid4())
-        self._chat_target.set_system_prompt(
+        self._prompt_target.set_system_prompt(
             system_prompt=system_prompt,
             conversation_id=scoring_conversation_id,
         )
@@ -72,14 +67,14 @@ class GandalfScorer(Scorer):
                     original_value=conversation_as_text,
                     converted_value=conversation_as_text,
                     conversation_id=scoring_conversation_id,
-                    prompt_target_identifier=self._chat_target.get_identifier(),
+                    prompt_target_identifier=self._prompt_target.get_identifier(),
                 )
             ]
         )
 
         try:
             response_text = (
-                (await self._chat_target.send_prompt_async(prompt_request=request)).request_pieces[0].converted_value
+                (await self._prompt_target.send_prompt_async(prompt_request=request)).request_pieces[0].converted_value
             )
         except (RuntimeError, BadRequestError):
             raise PyritException("Error in Gandalf Scorer. Unable to check for password in text.")
@@ -92,7 +87,8 @@ class GandalfScorer(Scorer):
 
         Args:
             text (str): The text to be scored.
-            task (str): The task based on which the text should be scored. Currently not supported for this scorer.
+            task (str): The task based on which the text should be scored (the original attacker model's objective).
+                Currently not supported for this scorer.
 
         Returns:
             The score is the password if found in text, else empty.
@@ -103,7 +99,7 @@ class GandalfScorer(Scorer):
         # Step 1. Check for password in text
         extracted_password = request_response.converted_value
 
-        if self._chat_target:
+        if self._prompt_target:
             extracted_password = await self._check_for_password_in_conversation(request_response.conversation_id)
 
         if not extracted_password:
@@ -116,6 +112,7 @@ class GandalfScorer(Scorer):
                 score_metadata=None,
                 prompt_request_response_id=request_response.id,
                 scorer_class_identifier=self.get_identifier(),
+                task=task,
             )
         else:
             # Step 2. Check for correct password via API
@@ -140,6 +137,7 @@ class GandalfScorer(Scorer):
                     score_metadata=None,
                     prompt_request_response_id=request_response.id,
                     scorer_class_identifier=self.get_identifier(),
+                    task=task,
                 )
             else:
                 score = Score(
@@ -151,6 +149,7 @@ class GandalfScorer(Scorer):
                     score_metadata=None,
                     prompt_request_response_id=request_response.id,
                     scorer_class_identifier=self.get_identifier(),
+                    task=task,
                 )
 
         self._memory.add_scores_to_memory(scores=[score])

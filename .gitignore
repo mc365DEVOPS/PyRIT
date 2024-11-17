@@ -1,6 +1,7 @@
 # PyRIT-specific configs
 submodules/
 results/
+eval/
 default_memory.json.memory
 
 # Byte-compiled / optimized / DLL files
@@ -118,12 +119,16 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+# env-operator and env-test, if you downloaded them as-is
+env-operator
+env-test
 
 # Spyder project settings
 .spyderproject
@@ -162,6 +167,10 @@ cython_debug/
 # Cache for generating docs
 doc/generate_docs/cache/*
 !doc/generate_docs/cache/.gitkeep
+
+# Jupyterbook build files
+doc/_build/
+doc/_autosummary/
 
 # ignore all VSCode settings
 .vscode/*
