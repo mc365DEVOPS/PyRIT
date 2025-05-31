@@ -1,10 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-import unicodedata
 import logging
-from pyrit.prompt_converter import PromptConverter, ConverterResult
+import unicodedata
+
 from pyrit.models import PromptDataType
+from pyrit.prompt_converter import ConverterResult, PromptConverter
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +24,10 @@ class DiacriticConverter(PromptConverter):
             accent (str): Type of diacritic to apply (default is 'acute').
 
              Available options are:
-            - 'acute': ´
-            - 'grave': `
-            - 'tilde': ˜
-            - 'umlaut': ¨
+            - 'acute': "\u0301"
+            - 'grave': "\u0300"
+            - 'tilde': "\u0303"
+            - 'umlaut': "\u0308"
 
         Raises:
             ValueError: If `target_chars` is empty.
@@ -40,16 +41,10 @@ class DiacriticConverter(PromptConverter):
         self._accent = accent
 
     def input_supported(self, input_type: PromptDataType) -> bool:
-        """
-        Checks if the input type is supported by this converter.
-
-        Args:
-            input_type (PromptDataType): The type of input to check (e.g., "text").
-
-        Returns:
-            bool: True if the input type is "text", otherwise False.
-        """
         return input_type == "text"
+
+    def output_supported(self, output_type: PromptDataType) -> bool:
+        return output_type == "text"
 
     def _get_accent_mark(self) -> str:
         """

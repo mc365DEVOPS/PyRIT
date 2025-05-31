@@ -2,9 +2,9 @@
 # Licensed under the MIT license.
 
 import logging
+import pathlib
 import textwrap
 from typing import Optional
-import pathlib
 
 from pyrit.common.path import DATASETS_PATH
 from pyrit.models import SeedPrompt
@@ -48,7 +48,7 @@ class NoiseConverter(LLMGenericTextConverter):
 
         super().__init__(
             converter_target=converter_target,
-            prompt_template=prompt_template,
+            system_prompt_template=prompt_template,
             noise=noise,
             number_errors=str(number_errors),
         )

@@ -1,14 +1,14 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
+import logging
 import math
 import random
 import re
 import string
-import logging
 
-from pyrit.prompt_converter import PromptConverter, ConverterResult
-
+from pyrit.models import PromptDataType
+from pyrit.prompt_converter import ConverterResult, PromptConverter
 
 # Use logger
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ class CharSwapGenerator(PromptConverter):
     def __init__(self, *, max_iterations: int = 10, word_swap_ratio: float = 0.2):
         """
         Initializes the CharSwapConverter.
+
         Args:
             max_iterations (int): Number of times to generate perturbed prompts.
                 The higher the number the higher the chance that words are different from the original prompt.
@@ -41,15 +42,16 @@ class CharSwapGenerator(PromptConverter):
         self.max_iterations = max_iterations
         self.word_swap_ratio = word_swap_ratio
 
-    def input_supported(self, input_type) -> bool:
-        """
-        Checks if the input type is supported by the converter.
-        """
+    def input_supported(self, input_type: PromptDataType) -> bool:
         return input_type == "text"
+
+    def output_supported(self, output_type: PromptDataType) -> bool:
+        return output_type == "text"
 
     def _perturb_word(self, word: str) -> str:
         """
         Perturb a word by swapping two adjacent characters.
+
         Args:
             word (str): The word to perturb.
         Returns:
@@ -69,6 +71,7 @@ class CharSwapGenerator(PromptConverter):
     async def convert_async(self, *, prompt: str, input_type="text") -> ConverterResult:
         """
         Converts the given prompt by applying character swaps.
+
         Args:
             prompt (str): The prompt to be converted.
         Returns:

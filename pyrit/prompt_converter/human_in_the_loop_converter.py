@@ -5,7 +5,7 @@ import logging
 from typing import Optional
 
 from pyrit.models import PromptDataType
-from pyrit.prompt_converter import PromptConverter, ConverterResult
+from pyrit.prompt_converter import ConverterResult, PromptConverter
 
 logger = logging.getLogger(__name__)
 
@@ -81,4 +81,7 @@ class HumanInTheLoopConverter(PromptConverter):
         return ConverterResult(output_text=prompt, output_type=input_type)
 
     def input_supported(self, input_type: PromptDataType) -> bool:
-        pass
+        return input_type == []
+
+    def output_supported(self, output_type: PromptDataType) -> bool:
+        return output_type == []

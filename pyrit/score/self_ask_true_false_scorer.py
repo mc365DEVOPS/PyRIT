@@ -2,14 +2,14 @@
 # Licensed under the MIT license.
 
 import enum
-from typing import Optional
-import yaml
-
 from pathlib import Path
+from typing import Optional
+
+import yaml
 
 from pyrit.common.path import DATASETS_PATH
 from pyrit.models import PromptRequestPiece, SeedPrompt
-from pyrit.models.score import UnvalidatedScore, Score
+from pyrit.models.score import Score, UnvalidatedScore
 from pyrit.prompt_target import PromptChatTarget
 from pyrit.score.scorer import Scorer
 
@@ -125,6 +125,7 @@ class SelfAskTrueFalseScorer(Scorer):
             scored_prompt_id=request_response.id,
             category=self._score_category,
             task=task,
+            orchestrator_identifier=request_response.orchestrator_identifier,
         )
 
         score = unvalidated_score.to_score(score_value=unvalidated_score.raw_score_value)
@@ -133,5 +134,4 @@ class SelfAskTrueFalseScorer(Scorer):
         return [score]
 
     def validate(self, request_response: PromptRequestPiece, *, task: Optional[str] = None):
-        if task:
-            raise ValueError("This scorer does not support tasks")
+        pass

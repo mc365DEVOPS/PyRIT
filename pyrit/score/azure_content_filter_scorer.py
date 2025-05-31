@@ -2,15 +2,25 @@
 # Licensed under the MIT license.
 
 from typing import Optional
-from pyrit.common import default_values
-from pyrit.models import data_serializer_factory, DataTypeSerializer, PromptRequestPiece, Score
-from pyrit.score.scorer import Scorer
 
-from azure.ai.contentsafety.models import AnalyzeTextOptions, AnalyzeImageOptions, TextCategory, ImageData
 from azure.ai.contentsafety import ContentSafetyClient
+from azure.ai.contentsafety.models import (
+    AnalyzeImageOptions,
+    AnalyzeTextOptions,
+    ImageData,
+    TextCategory,
+)
 from azure.core.credentials import AzureKeyCredential
 from azure.identity import DefaultAzureCredential
 
+from pyrit.common import default_values
+from pyrit.models import (
+    DataTypeSerializer,
+    PromptRequestPiece,
+    Score,
+    data_serializer_factory,
+)
+from pyrit.score.scorer import Scorer
 
 # Supported image formats for Azure as per https://learn.microsoft.com/en-us/azure/ai-services/content-safety/
 # quickstart-image?tabs=visual-studio%2Cwindows&pivots=programming-language-rest
@@ -52,6 +62,8 @@ class AzureContentFilterScorer(Scorer):
             harm_categories: The harm categories you want to query for as per defined in
                 azure.ai.contentsafety.models.TextCategory.
         """
+
+        self.scorer_type = "float_scale"
 
         if harm_categories:
             self._score_categories = [category.value for category in harm_categories]
@@ -151,7 +163,9 @@ class AzureContentFilterScorer(Scorer):
     async def _get_base64_image_data(self, request_response: PromptRequestPiece):
         image_path = request_response.converted_value
         ext = DataTypeSerializer.get_extension(image_path)
-        image_serializer = data_serializer_factory(value=image_path, data_type="image_path", extension=ext)
+        image_serializer = data_serializer_factory(
+            category="prompt-memory-entries", value=image_path, data_type="image_path", extension=ext
+        )
         base64_encoded_data = await image_serializer.read_data_base64()
         return base64_encoded_data
 

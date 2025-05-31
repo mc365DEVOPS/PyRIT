@@ -6,11 +6,11 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.3
+#       jupytext_version: 1.16.4
 #   kernelspec:
-#     display_name: pyrit-kernel
+#     display_name: pyrit-dev
 #     language: python
-#     name: pyrit-kernel
+#     name: python3
 # ---
 
 # %% [markdown]
@@ -32,15 +32,15 @@
 
 # %%
 import os
-from pyrit.common import default_values
 
-default_values.load_environment_files()
+from pyrit.common import IN_MEMORY, initialize_pyrit
+
+initialize_pyrit(memory_db_type=IN_MEMORY)
 
 # Enter details of your AML workspace
 subscription_id = os.environ.get("AZURE_SUBSCRIPTION_ID")
 resource_group = os.environ.get("AZURE_RESOURCE_GROUP")
 workspace = os.environ.get("AZURE_ML_WORKSPACE_NAME")
-compute_name = os.environ.get("AZURE_ML_COMPUTE_NAME")
 print(workspace)
 
 # %%
@@ -51,21 +51,16 @@ from azure.identity import DefaultAzureCredential
 ml_client = MLClient(DefaultAzureCredential(), subscription_id, resource_group, workspace)
 
 # %% [markdown]
-# ## Create Compute Cluster
-#
-# Before proceeding, create a compute cluster in Azure ML. The following command may be useful:
-# az ml compute create --size Standard_ND96isrf_H100_v5 --type AmlCompute --name <compute-name> -g <group> -w <workspace> --min-instances 0
-
-# %% [markdown]
 # ## Create AML Environment
 
 # %% [markdown]
 # To install the dependencies needed to run GCG, we create an AML environment from a [Dockerfile](../../../pyrit/auxiliary_attacks/gcg/src/Dockerfile).
-
 # %%
 from pathlib import Path
+
+from azure.ai.ml.entities import BuildContext, Environment, JobResourceConfiguration
+
 from pyrit.common.path import HOME_PATH
-from azure.ai.ml.entities import Environment, BuildContext
 
 # Configure the AML environment with path to Dockerfile and dependencies
 env_docker_context = Environment(
@@ -102,12 +97,22 @@ job = command(
         "batch_size": 256,
     },
     environment=f"{env_docker_context.name}:{env_docker_context.version}",
-    environment_variables={"HF_TOKEN": os.environ["HF_TOKEN"]},
+    environment_variables={"HUGGINGFACE_TOKEN": os.environ["HUGGINGFACE_TOKEN"]},
     display_name="suffix_generation",
     description="Generate a suffix for attacking LLMs.",
-    compute=compute_name,
+    resources=JobResourceConfiguration(
+        instance_type="Standard_NC96ads_A100_v4",
+        instance_count=1,
+    ),
 )
 
 # %%
 # Submit the command
 returned_job = ml_client.create_or_update(job)
+
+# %%
+# Close connection
+from pyrit.memory import CentralMemory
+
+memory = CentralMemory.get_memory_instance()
+memory.dispose_engine()

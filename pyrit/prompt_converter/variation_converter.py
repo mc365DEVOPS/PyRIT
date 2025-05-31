@@ -1,12 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-from textwrap import dedent
-
 import json
 import logging
-import uuid
 import pathlib
+import uuid
+from textwrap import dedent
 
 from pyrit.common.path import DATASETS_PATH
 from pyrit.exceptions import (
@@ -14,10 +13,14 @@ from pyrit.exceptions import (
     pyrit_json_retry,
     remove_markdown_json,
 )
-from pyrit.models import PromptDataType, PromptRequestPiece, PromptRequestResponse, SeedPrompt
-from pyrit.prompt_converter import PromptConverter, ConverterResult
+from pyrit.models import (
+    PromptDataType,
+    PromptRequestPiece,
+    PromptRequestResponse,
+    SeedPrompt,
+)
+from pyrit.prompt_converter import ConverterResult, PromptConverter
 from pyrit.prompt_target import PromptChatTarget
-
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +92,7 @@ class VariationConverter(PromptConverter):
     async def send_variation_prompt_async(self, request):
         response = await self.converter_target.send_prompt_async(prompt_request=request)
 
-        response_msg = response.request_pieces[0].converted_value
+        response_msg = response.get_value()
         response_msg = remove_markdown_json(response_msg)
         try:
             response = json.loads(response_msg)
@@ -104,3 +107,6 @@ class VariationConverter(PromptConverter):
 
     def input_supported(self, input_type: PromptDataType) -> bool:
         return input_type == "text"
+
+    def output_supported(self, output_type: PromptDataType) -> bool:
+        return output_type == "text"

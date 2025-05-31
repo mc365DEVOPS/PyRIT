@@ -1,12 +1,13 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-import segno
 from typing import Optional
+
+import segno
 
 from pyrit.models import PromptDataType
 from pyrit.models.data_type_serializer import data_serializer_factory
-from pyrit.prompt_converter import PromptConverter, ConverterResult
+from pyrit.prompt_converter import ConverterResult, PromptConverter
 
 
 class QRCodeConverter(PromptConverter):
@@ -53,7 +54,7 @@ class QRCodeConverter(PromptConverter):
         self._finder_dark_color = finder_dark_color or dark_color
         self._finder_light_color = finder_light_color or light_color
         self._border_color = border_color or light_color
-        self._img_serializer = data_serializer_factory(data_type="image_path")
+        self._img_serializer = data_serializer_factory(category="prompt-memory-entries", data_type="image_path")
 
     async def convert_async(self, *, prompt: str, input_type: PromptDataType = "text") -> ConverterResult:
         """
@@ -91,3 +92,6 @@ class QRCodeConverter(PromptConverter):
 
     def input_supported(self, input_type: PromptDataType) -> bool:
         return input_type == "text"
+
+    def output_supported(self, output_type: PromptDataType) -> bool:
+        return output_type == "image_path"

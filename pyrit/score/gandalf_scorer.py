@@ -1,16 +1,16 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
+import uuid
 from textwrap import dedent
 from typing import Optional
 
 import requests
 from openai import BadRequestError
-import uuid
 
 from pyrit.exceptions import PyritException, pyrit_target_retry
 from pyrit.models import PromptRequestPiece, PromptRequestResponse, Score
-from pyrit.prompt_target import PromptChatTarget, GandalfLevel
+from pyrit.prompt_target import GandalfLevel, PromptChatTarget
 from pyrit.score.scorer import Scorer
 
 
@@ -55,7 +55,7 @@ class GandalfScorer(Scorer):
         for request_response in conversation:
             conversation_as_text += "Gandalf" if request_response.request_pieces[0].role == "assistant" else "user"
             conversation_as_text += ": "
-            conversation_as_text += request_response.request_pieces[0].converted_value
+            conversation_as_text += request_response.get_value()
             conversation_as_text += "\n"
 
         request = PromptRequestResponse(
@@ -73,9 +73,7 @@ class GandalfScorer(Scorer):
         )
 
         try:
-            response_text = (
-                (await self._prompt_target.send_prompt_async(prompt_request=request)).request_pieces[0].converted_value
-            )
+            response_text = (await self._prompt_target.send_prompt_async(prompt_request=request)).get_value()
         except (RuntimeError, BadRequestError):
             raise PyritException("Error in Gandalf Scorer. Unable to check for password in text.")
         if response_text.strip() == "NO":
@@ -156,7 +154,5 @@ class GandalfScorer(Scorer):
         return [score]
 
     def validate(self, request_response: PromptRequestPiece, *, task: Optional[str] = None):
-        if task:
-            raise ValueError("This scorer does not support tasks")
         if request_response.converted_value_data_type != "text":
             raise ValueError("Gandalf scorer only supports text data type")

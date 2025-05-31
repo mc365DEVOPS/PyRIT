@@ -2,13 +2,12 @@
 # Licensed under the MIT license.
 
 import logging
-
-from pyrit.prompt_converter import ConverterResult, LLMGenericTextConverter
-from pyrit.models import SeedPrompt, PromptDataType
-from pyrit.prompt_target import PromptChatTarget
+import pathlib
 
 from pyrit.common.path import DATASETS_PATH
-import pathlib
+from pyrit.models import PromptDataType, SeedPrompt
+from pyrit.prompt_converter import ConverterResult, LLMGenericTextConverter
+from pyrit.prompt_target import PromptChatTarget
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ class MathPromptConverter(LLMGenericTextConverter):
             )
         )
 
-        super().__init__(converter_target=converter_target, prompt_template=prompt_template)
+        super().__init__(converter_target=converter_target, system_prompt_template=prompt_template)
 
     async def convert_async(self, *, prompt: str, input_type: PromptDataType = "text") -> ConverterResult:
         """

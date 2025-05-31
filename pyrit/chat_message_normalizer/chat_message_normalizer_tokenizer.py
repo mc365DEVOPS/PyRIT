@@ -1,9 +1,10 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-from pyrit.models import ChatMessage
+from transformers import PreTrainedTokenizerBase
+
 from pyrit.chat_message_normalizer import ChatMessageNormalizer
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from pyrit.models import ChatMessage
 
 
 class ChatMessageNormalizerTokenizerTemplate(ChatMessageNormalizer[str]):
@@ -13,12 +14,12 @@ class ChatMessageNormalizerTokenizerTemplate(ChatMessageNormalizer[str]):
     https://huggingface.co/docs/transformers/main/en/chat_templating
     """
 
-    def __init__(self, tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast):
+    def __init__(self, tokenizer: PreTrainedTokenizerBase):
         """
         Initializes an instance of the ChatMessageNormalizerTokenizerTemplate class.
 
         Args:
-            tokenizer (PreTrainedTokenizer | PreTrainedTokenizerFast): A Hugging Face tokenizer.
+            tokenizer (PreTrainedTokenizerBase): A Hugging Face tokenizer.
         """
         self.tokenizer = tokenizer
 
@@ -38,9 +39,12 @@ class ChatMessageNormalizerTokenizerTemplate(ChatMessageNormalizer[str]):
         formatted_messages: str = ""
         for m in messages:
             messages_list.append({"role": m.role, "content": m.content})
-        formatted_messages = self.tokenizer.apply_chat_template(
-            messages_list,
-            tokenize=False,
-            add_generation_prompt=True,
+
+        formatted_messages = str(
+            self.tokenizer.apply_chat_template(
+                messages_list,
+                tokenize=False,
+                add_generation_prompt=True,
+            )
         )
         return formatted_messages

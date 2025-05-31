@@ -5,9 +5,8 @@ import abc
 import logging
 from typing import Optional
 
-from pyrit.memory import MemoryInterface, CentralMemory
-from pyrit.models import PromptRequestResponse, Identifier
-
+from pyrit.memory import CentralMemory, MemoryInterface
+from pyrit.models import Identifier, PromptRequestResponse
 
 logger = logging.getLogger(__name__)
 
@@ -40,14 +39,6 @@ class PromptTarget(abc.ABC, Identifier):
         """
         Validates the provided prompt request response
         """
-
-    def __enter__(self):
-        """Enter the runtime context related to this object."""
-        return self  # You can return self or another object that should be used in the with-statement.
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Exit the runtime context and perform any cleanup actions."""
-        self.dispose_db_engine()
 
     def dispose_db_engine(self) -> None:
         """

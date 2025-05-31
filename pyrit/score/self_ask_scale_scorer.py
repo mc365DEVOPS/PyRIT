@@ -1,11 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-import yaml
 import enum
-
 from pathlib import Path
 from typing import Optional
+
+import yaml
 
 from pyrit.common.path import SCALES_PATH
 from pyrit.models import PromptRequestPiece, Score, SeedPrompt, UnvalidatedScore
@@ -21,10 +21,12 @@ class SelfAskScaleScorer(Scorer):
     class ScalePaths(enum.Enum):
         TREE_OF_ATTACKS_SCALE = Path(SCALES_PATH, "tree_of_attacks_scale.yaml").resolve()
         TASK_ACHIEVED_SCALE = Path(SCALES_PATH, "task_achieved_scale.yaml").resolve()
+        CRITERIA_SCALE = Path(SCALES_PATH, "criteria_example_scale.yaml").resolve()
 
     class SystemPaths(enum.Enum):
         GENERAL_SYSTEM_PROMPT = Path(SCALES_PATH, "general_system_prompt.yaml").resolve()
         RED_TEAMER_SYSTEM_PROMPT = Path(SCALES_PATH, "red_teamer_system_prompt.yaml").resolve()
+        CRITERIA_SYSTEM_PROMPT = Path(SCALES_PATH, "criteria_system_prompt.yaml").resolve()
 
     def __init__(
         self,

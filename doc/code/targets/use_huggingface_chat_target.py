@@ -1,3 +1,18 @@
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.16.4
+#   kernelspec:
+#     display_name: pyrit-dev
+#     language: python
+#     name: python3
+# ---
+
 # %% [markdown]
 # # HuggingFace Chat Target Testing - optional
 #
@@ -30,11 +45,15 @@
 
 # %%
 import time
-from pyrit.prompt_target import HuggingFaceChatTarget
+
+from pyrit.common import IN_MEMORY, initialize_pyrit
 from pyrit.orchestrator import PromptSendingOrchestrator
+from pyrit.prompt_target import HuggingFaceChatTarget
+
+initialize_pyrit(memory_db_type=IN_MEMORY)
 
 # models to test
-model_id = "HuggingFaceTB/SmolLM-135M-Instruct"
+model_id = "Qwen/Qwen2-0.5B-Instruct"
 
 # List of prompts to send
 prompt_list = ["What is 3*3? Give me the solution.", "What is 4*4? Give me the solution."]
@@ -49,13 +68,13 @@ try:
     target = HuggingFaceChatTarget(model_id=model_id, use_cuda=False, tensor_format="pt", max_new_tokens=30)
 
     # Initialize the orchestrator
-    orchestrator = PromptSendingOrchestrator(prompt_target=target, verbose=False)
+    orchestrator = PromptSendingOrchestrator(objective_target=target, verbose=False)
 
     # Record start time
     start_time = time.time()
 
     # Send prompts asynchronously
-    responses = await orchestrator.send_prompts_async(prompt_list=prompt_list)  # type: ignore
+    responses = await orchestrator.run_attacks_async(objectives=prompt_list)  # type: ignore
 
     # Record end time
     end_time = time.time()
@@ -68,7 +87,7 @@ try:
     print(f"Average response time for {model_id}: {avg_time:.2f} seconds\n")
 
     # Print the conversations
-    await orchestrator.print_conversations()  # type: ignore
+    await orchestrator.print_conversations_async()  # type: ignore
 
 except Exception as e:
     print(f"An error occurred with model {model_id}: {e}\n")
@@ -79,3 +98,9 @@ if model_times[model_id] is not None:
     print(f"{model_id}: {model_times[model_id]:.2f} seconds")
 else:
     print(f"{model_id}: Error occurred, no average time calculated.")
+
+# %%
+from pyrit.memory import CentralMemory
+
+memory = CentralMemory.get_memory_instance()
+memory.dispose_engine()

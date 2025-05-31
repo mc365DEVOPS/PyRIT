@@ -6,9 +6,9 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.2
+#       jupytext_version: 1.16.4
 #   kernelspec:
-#     display_name: pyrit-311
+#     display_name: pyrit-dev
 #     language: python
 #     name: python3
 # ---
@@ -28,11 +28,15 @@
 # Converters can be used to perform these types of transformations. Here is a simple program that uses Rot13Converter converter, RandomCapitalLettersConverter, and AsciiArtConverter.
 
 # %%
-from pyrit.common import default_values
-from pyrit.prompt_converter import ROT13Converter, AsciiArtConverter, RandomCapitalLettersConverter
+from pyrit.common import IN_MEMORY, initialize_pyrit
+from pyrit.prompt_converter import (
+    AsciiArtConverter,
+    BinaryConverter,
+    RandomCapitalLettersConverter,
+    ROT13Converter,
+)
 
-
-default_values.load_environment_files()
+initialize_pyrit(memory_db_type=IN_MEMORY)
 
 prompt = "tell me how to cut down a tree"
 
@@ -40,3 +44,12 @@ prompt = "tell me how to cut down a tree"
 print(await ROT13Converter().convert_tokens_async(prompt=prompt))  # type: ignore
 print(await RandomCapitalLettersConverter(percentage=25.0).convert_tokens_async(prompt=prompt))  # type: ignore
 print(await AsciiArtConverter().convert_tokens_async(prompt=prompt))  # type: ignore
+print(await BinaryConverter().convert_tokens_async(prompt=prompt))  # type: ignore
+
+
+# %%
+# Close connection
+from pyrit.memory import CentralMemory
+
+memory = CentralMemory.get_memory_instance()
+memory.dispose_engine()

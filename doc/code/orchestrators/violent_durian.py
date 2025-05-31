@@ -5,9 +5,9 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.2
+#       jupytext_version: 1.16.6
 #   kernelspec:
-#     display_name: pyrit-311
+#     display_name: pyrit-312
 #     language: python
 #     name: python3
 # ---
@@ -19,21 +19,19 @@
 # The strategy revolves around an attacker LLM manipulating the Target LLM into adopting a criminal persona and
 # providing illegal advice or dangerous suggestions. The criminal persona is chosen randomly from a predefined list,
 # and the conversation objective is set to convince the Target LLM to act as this persona.
-
 # %%
-import os
 import logging
-from pathlib import Path
+import os
 import random
+from pathlib import Path
 
+from pyrit.common import IN_MEMORY, initialize_pyrit
 from pyrit.common.path import DATASETS_PATH
-from pyrit.prompt_target import OpenAIChatTarget
 from pyrit.orchestrator import RedTeamingOrchestrator
-from pyrit.common import default_values
+from pyrit.prompt_target import OpenAIChatTarget
 from pyrit.score import SelfAskTrueFalseScorer
 
-# Load environment variables
-default_values.load_environment_files()
+initialize_pyrit(memory_db_type=IN_MEMORY)
 
 # Set up logging
 logging.basicConfig(level=logging.WARNING)
@@ -62,22 +60,17 @@ strategy_path = DATASETS_PATH / "orchestrators" / "red_teaming" / "violent_duria
 
 # Set up the red_teaming_chat used to generate prompts sent to the target.
 # OpenAI (GPT4) as the Red Teaming LLM
-red_teaming_llm = OpenAIChatTarget(
-    deployment_name=os.environ.get("AZURE_OPENAI_CHAT_DEPLOYMENT"),
-    endpoint=os.environ.get("AZURE_OPENAI_CHAT_ENDPOINT"),
-    api_key=os.environ.get("AZURE_OPENAI_CHAT_KEY"),
-)
+adversary_llm = OpenAIChatTarget()
 
 # Set the target LLM, here using Azure OpenAI's GPT-4 chat model
-prompt_target = OpenAIChatTarget(
-    deployment_name=os.environ.get("AZURE_OPENAI_CHAT_DEPLOYMENT"),
-    endpoint=os.environ.get("AZURE_OPENAI_CHAT_ENDPOINT"),
-    api_key=os.environ.get("AZURE_OPENAI_CHAT_KEY"),
+target_llm = OpenAIChatTarget(
+    endpoint=os.environ.get("AZURE_OPENAI_GPT4_CHAT_ENDPOINT"),
+    api_key=os.environ.get("AZURE_OPENAI_GPT4_CHAT_KEY"),
 )
 
 # Set up the scorer for evaluating if the target LLM adopts the criminal persona
 scorer = SelfAskTrueFalseScorer(
-    chat_target=red_teaming_llm,
+    chat_target=adversary_llm,
     true_false_question_path=Path("../../../assets/demo_scorer_definitions/criminal_persona_classifier.yaml"),
 )
 
@@ -114,12 +107,13 @@ initial_prompt = (
 )
 
 # Use the RedTeamingOrchestrator to handle the attack and manage the conversation
-with RedTeamingOrchestrator(
-    adversarial_chat=red_teaming_llm,
-    objective_target=prompt_target,
-    initial_adversarial_chat_prompt=initial_prompt,  # The first prompt introduces the Violent Durian persona
+red_teaming_orchestrator = RedTeamingOrchestrator(
+    adversarial_chat=adversary_llm,
+    objective_target=target_llm,
+    adversarial_chat_seed_prompt=initial_prompt,  # The first prompt introduces the Violent Durian persona
     objective_scorer=scorer,
     max_turns=2,
-) as red_teaming_orchestrator:
-    result = await red_teaming_orchestrator.run_attack_async(objective=conversation_objective)  # type: ignore
-    await red_teaming_orchestrator.print_conversation_async(result=result)  # type: ignore
+)
+
+result = await red_teaming_orchestrator.run_attack_async(objective=conversation_objective)  # type: ignore
+await result.print_conversation_async()  # type: ignore

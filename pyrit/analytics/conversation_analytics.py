@@ -3,9 +3,11 @@
 
 import numpy as np
 
-from sklearn.metrics.pairwise import cosine_similarity
 from pyrit.memory.memory_interface import MemoryInterface
-from pyrit.memory.memory_models import ConversationMessageWithSimilarity, EmbeddingMessageWithSimilarity
+from pyrit.memory.memory_models import (
+    ConversationMessageWithSimilarity,
+    EmbeddingMessageWithSimilarity,
+)
 
 
 class ConversationAnalytics:
@@ -36,7 +38,7 @@ class ConversationAnalytics:
             list[ConversationMessageWithSimilarity]: A list of ConversationMessageWithSimilarity objects representing
             the similar chat messages based on content.
         """
-        all_memories = self.memory_interface.get_all_prompt_pieces()
+        all_memories = self.memory_interface.get_prompt_request_pieces()
         similar_messages = []
 
         for memory in all_memories:
@@ -70,14 +72,14 @@ class ConversationAnalytics:
         all_embdedding_memory = self.memory_interface.get_all_embeddings()
         similar_messages = []
 
-        target_embedding = np.array(chat_message_embedding).reshape(1, -1)
+        target_embedding = np.array(chat_message_embedding).reshape(-1)
 
         for memory in all_embdedding_memory:
             if not hasattr(memory, "embedding") or memory.embedding is None:
                 continue
 
-            memory_embedding = np.array(memory.embedding).reshape((1, -1))
-            similarity_score = cosine_similarity(target_embedding, memory_embedding)[0][0]
+            memory_embedding = np.array(memory.embedding).reshape(-1)
+            similarity_score = cosine_similarity(target_embedding, memory_embedding)
 
             if similarity_score >= threshold:
                 similar_messages.append(
@@ -87,3 +89,17 @@ class ConversationAnalytics:
                 )
 
         return similar_messages
+
+
+def cosine_similarity(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """
+    Calculate the cosine similarity between two vectors.
+
+    Args:
+        a (np.ndarray): The first vector.
+        b (np.ndarray): The second vector.
+
+    Returns:
+        np.ndarray: The cosine similarity between the two vectors.
+    """
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))

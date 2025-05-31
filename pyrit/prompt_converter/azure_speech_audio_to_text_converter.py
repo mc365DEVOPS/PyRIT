@@ -3,7 +3,10 @@
 
 import logging
 import time
-import azure.cognitiveservices.speech as speechsdk
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import azure.cognitiveservices.speech as speechsdk  # noqa: F401
 
 from pyrit.common import default_values
 from pyrit.models import PromptDataType
@@ -51,6 +54,9 @@ class AzureSpeechAudioToTextConverter(PromptConverter):
     def input_supported(self, input_type: PromptDataType) -> bool:
         return input_type == "audio_path"
 
+    def output_supported(self, output_type: PromptDataType) -> bool:
+        return output_type == "text"
+
     async def convert_async(self, *, prompt: str, input_type: PromptDataType = "audio_path") -> ConverterResult:
         """
         Converter that transcribes audio to text.
@@ -67,7 +73,9 @@ class AzureSpeechAudioToTextConverter(PromptConverter):
         if not prompt.endswith(".wav"):
             raise ValueError("Please provide a .wav audio file. Compressed formats are not currently supported.")
 
-        audio_serializer = data_serializer_factory(data_type="audio_path", value=prompt)
+        audio_serializer = data_serializer_factory(
+            category="prompt-memory-entries", data_type="audio_path", value=prompt
+        )
         audio_bytes = await audio_serializer.read_data()
 
         try:
@@ -86,6 +94,15 @@ class AzureSpeechAudioToTextConverter(PromptConverter):
         Returns:
             str: Transcribed text
         """
+        try:
+            import azure.cognitiveservices.speech as speechsdk  # noqa: F811
+        except ModuleNotFoundError as e:
+            logger.error(
+                "Could not import azure.cognitiveservices.speech. "
+                + "You may need to install it via 'pip install pyrit[speech]'"
+            )
+            raise e
+
         speech_config = speechsdk.SpeechConfig(
             subscription=self._azure_speech_key,
             region=self._azure_speech_region,
@@ -125,25 +142,34 @@ class AzureSpeechAudioToTextConverter(PromptConverter):
 
         return "".join(transcribed_text)
 
-    def transcript_cb(self, evt: speechsdk.SpeechRecognitionEventArgs, transcript: list[str]) -> None:
+    def transcript_cb(self, evt: Any, transcript: list[str]) -> None:
         """
         Callback function that appends transcribed text upon receiving a "recognized" event
 
         Args:
-            evt (SpeechRecognitionEventArgs): event
+            evt (speechsdk.SpeechRecognitionEventArgs): event
             transcript (list): list to store transcribed text
         """
         logger.info("RECOGNIZED: {}".format(evt.result.text))
         transcript.append(evt.result.text)
 
-    def stop_cb(self, evt: speechsdk.SpeechRecognitionEventArgs, recognizer: speechsdk.SpeechRecognizer) -> None:
+    def stop_cb(self, evt: Any, recognizer: Any) -> None:
         """
         Callback function that stops continuous recognition upon receiving an event 'evt'
 
         Args:
-            evt (SpeechRecognitionEventArgs): event
-            recognizer (SpeechRecognizer): speech recognizer object
+            evt (speechsdk.SpeechRecognitionEventArgs): event
+            recognizer (speechsdk.SpeechRecognizer): speech recognizer object
         """
+        try:
+            import azure.cognitiveservices.speech as speechsdk  # noqa: F811
+        except ModuleNotFoundError as e:
+            logger.error(
+                "Could not import azure.cognitiveservices.speech. "
+                + "You may need to install it via 'pip install pyrit[speech]'"
+            )
+            raise e
+
         logger.info("CLOSING on {}".format(evt))
         recognizer.stop_continuous_recognition_async()
         self.done = True

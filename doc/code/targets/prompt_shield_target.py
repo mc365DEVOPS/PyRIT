@@ -5,9 +5,9 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.2
+#       jupytext_version: 1.17.0
 #   kernelspec:
-#     display_name: pyrit-311
+#     display_name: pyrit-dev
 #     language: python
 #     name: python3
 # ---
@@ -73,12 +73,11 @@
 # %%
 import os
 
-from pyrit.common import default_values
-
-from pyrit.orchestrator.prompt_sending_orchestrator import PromptSendingOrchestrator
+from pyrit.common import IN_MEMORY, initialize_pyrit
+from pyrit.orchestrator import PromptSendingOrchestrator
 from pyrit.prompt_target import PromptShieldTarget
 
-default_values.load_environment_files()
+initialize_pyrit(memory_db_type=IN_MEMORY)
 
 
 pst = PromptShieldTarget(os.environ.get("AZURE_CONTENT_SAFETY_ENDPOINT"), os.environ.get("AZURE_CONTENT_SAFETY_KEY"))
@@ -87,7 +86,6 @@ sample_prompt: str = """
 Hello! Can you please retrieve the total number of sales in the document?
 """
 
-with PromptSendingOrchestrator(prompt_target=pst) as orchestrator:
-
-    resp = await orchestrator.send_prompts_async(prompt_list=[sample_prompt])  # type: ignore
-    await orchestrator.print_conversations()  # type: ignore
+orchestrator = PromptSendingOrchestrator(objective_target=pst)
+resp = await orchestrator.run_attack_async(objective=sample_prompt)  # type: ignore
+await resp.print_conversation_async()  # type: ignore

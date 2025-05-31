@@ -1,11 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-import yaml
-
 import enum
 from pathlib import Path
 from typing import Dict, Optional
+
+import yaml
 
 from pyrit.common.path import CONTENT_CLASSIFIERS_PATH
 from pyrit.models import PromptRequestPiece, Score, SeedPrompt, UnvalidatedScore
@@ -106,6 +106,7 @@ class SelfAskCategoryScorer(Scorer):
             prompt_request_data_type=request_response.converted_value_data_type,
             scored_prompt_id=request_response.id,
             task=task,
+            orchestrator_identifier=request_response.orchestrator_identifier,
         )
 
         score = unvalidated_score.to_score(score_value=unvalidated_score.raw_score_value)
@@ -114,5 +115,4 @@ class SelfAskCategoryScorer(Scorer):
         return [score]
 
     def validate(self, request_response: PromptRequestPiece, *, task: Optional[str] = None):
-        if task:
-            raise ValueError("This scorer does not support tasks")
+        pass

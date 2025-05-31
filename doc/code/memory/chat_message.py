@@ -26,8 +26,8 @@
 #
 # Below is an example that converts a list of chat messages to chatml format and back.
 # %%
-from pyrit.models import ChatMessage
 from pyrit.chat_message_normalizer import ChatMessageNormalizerChatML
+from pyrit.models import ChatMessage
 
 messages = [
     ChatMessage(role="system", content="You are a helpful AI assistant"),
@@ -66,10 +66,12 @@ print(chat_messages)
 # Besides chatml, there are many other chat templates that a model might be trained on. If you would like to apply the template stored in a Hugging Face tokenizer,
 # you can utilize `ChatMessageNormalizerTokenizerTemplate`. In the example below, we load the tokenizer for Mistral-7B-Instruct-v0.1 and apply its chat template to
 # the messages. Note that this template only adds `[INST]` and `[/INST]` tokens to the user messages for instruction fine-tuning.
-
 # %%
-from pyrit.chat_message_normalizer import ChatMessageNormalizerTokenizerTemplate
+import os
+
 from transformers import AutoTokenizer
+
+from pyrit.chat_message_normalizer import ChatMessageNormalizerTokenizerTemplate
 
 messages = [
     ChatMessage(role="user", content="Hello, how are you?"),
@@ -77,8 +79,11 @@ messages = [
     ChatMessage(role="user", content="What is your favorite food?"),
 ]
 
-# load the tokenizer
-tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
+# Load the tokenizer. If you are not logged in via CLI (huggingface-cli login), you can pass in your access token here
+# via the HUGGINGFACE_TOKEN environment variable to access the gated model.
+tokenizer = AutoTokenizer.from_pretrained(
+    "mistralai/Mistral-7B-Instruct-v0.1", token=os.environ.get("HUGGINGFACE_TOKEN")
+)
 
 # create the normalizer and pass in the tokenizer
 tokenizer_normalizer = ChatMessageNormalizerTokenizerTemplate(tokenizer)

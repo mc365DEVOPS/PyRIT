@@ -2,16 +2,24 @@
 # Licensed under the MIT license.
 
 
-import httpx
 import json
 import logging
 import re
-from typing import Callable
+from typing import Any, Callable, Optional, Sequence
 
-from pyrit.models import construct_response_from_request, PromptRequestPiece, PromptRequestResponse
-from pyrit.prompt_target import PromptTarget
+import httpx
+
+from pyrit.models import (
+    PromptRequestPiece,
+    PromptRequestResponse,
+    construct_response_from_request,
+)
+from pyrit.prompt_target import PromptTarget, limit_requests_per_minute
 
 logger = logging.getLogger(__name__)
+
+
+RequestBody = dict[str, Any] | str
 
 
 class HTTPTarget(PromptTarget):
@@ -26,6 +34,7 @@ class HTTPTarget(PromptTarget):
         use_tls: (bool): whether to use TLS or not. Default is True
         callback_function (function): function to parse HTTP response.
             These are the customizable functions which determine how to parse the output
+        httpx_client_kwargs: (dict): additional keyword arguments to pass to the HTTP client
     """
 
     def __init__(
@@ -33,14 +42,18 @@ class HTTPTarget(PromptTarget):
         http_request: str,
         prompt_regex_string: str = "{PROMPT}",
         use_tls: bool = True,
-        callback_function: Callable = None,
+        callback_function: Callable | None = None,
+        max_requests_per_minute: Optional[int] = None,
+        **httpx_client_kwargs: Any,
     ) -> None:
-
+        super().__init__(max_requests_per_minute=max_requests_per_minute)
         self.http_request = http_request
         self.callback_function = callback_function
         self.prompt_regex_string = prompt_regex_string
         self.use_tls = use_tls
+        self.httpx_client_kwargs = httpx_client_kwargs or {}
 
+    @limit_requests_per_minute
     async def send_prompt_async(self, *, prompt_request: PromptRequestResponse) -> PromptRequestResponse:
         """
         Sends prompt to HTTP endpoint and returns the response
@@ -52,9 +65,11 @@ class HTTPTarget(PromptTarget):
         # Add Prompt into URL (if the URL takes it)
         re_pattern = re.compile(self.prompt_regex_string)
         if re.search(self.prompt_regex_string, self.http_request):
-            self.http_request = re_pattern.sub(request.converted_value, self.http_request)
+            http_request_w_prompt = re_pattern.sub(request.converted_value, self.http_request)
+        else:
+            http_request_w_prompt = self.http_request
 
-        header_dict, http_body, url, http_method, http_version = self.parse_raw_http_request()
+        header_dict, http_body, url, http_method, http_version = self.parse_raw_http_request(http_request_w_prompt)
 
         # Make the actual HTTP request:
 
@@ -66,14 +81,24 @@ class HTTPTarget(PromptTarget):
         if http_version and "HTTP/2" in http_version:
             http2_version = True
 
-        async with httpx.AsyncClient(http2=http2_version) as client:
-            response = await client.request(
-                method=http_method,
-                url=url,
-                headers=header_dict,
-                data=http_body,
-                follow_redirects=True,
-            )
+        async with httpx.AsyncClient(http2=http2_version, **self.httpx_client_kwargs) as client:
+            match http_body:
+                case dict():
+                    response = await client.request(
+                        method=http_method,
+                        url=url,
+                        headers=header_dict,
+                        data=http_body,
+                        follow_redirects=True,
+                    )
+                case str():
+                    response = await client.request(
+                        method=http_method,
+                        url=url,
+                        headers=header_dict,
+                        content=http_body,
+                        follow_redirects=True,
+                    )
         response_content = response.content
 
         if self.callback_function:
@@ -83,9 +108,13 @@ class HTTPTarget(PromptTarget):
 
         return response_entry
 
-    def parse_raw_http_request(self):
+    def parse_raw_http_request(self, http_request: str) -> tuple[dict[str, str], RequestBody, str, str, str]:
         """
         Parses the HTTP request string into a dictionary of headers
+
+        Parameters:
+            http_request: the header parameters as a request str with
+                          prompt already injected
 
         Returns:
             headers_dict (dict): dictionary of all http header values
@@ -96,13 +125,13 @@ class HTTPTarget(PromptTarget):
         """
 
         headers_dict = {}
-        if not self.http_request:
-            return {}, "", "", ""
+        if not http_request:
+            return {}, "", "", "", ""
 
         body = ""
 
         # Split the request into headers and body by finding the double newlines (\n\n)
-        request_parts = self.http_request.strip().split("\n\n", 1)
+        request_parts = http_request.strip().split("\n\n", 1)
 
         # Parse out the header components
         header_lines = request_parts[0].strip().split("\n")
@@ -112,7 +141,10 @@ class HTTPTarget(PromptTarget):
         # Loop through each line and split into key-value pairs
         for line in header_lines:
             key, value = line.split(":", 1)
-            headers_dict[key.strip()] = value.strip()
+            headers_dict[key.strip().lower()] = value.strip()
+
+        if "content-length" in headers_dict:
+            del headers_dict["content-length"]
 
         if len(request_parts) > 1:
             # Parse as JSON object if it can be parsed that way
@@ -122,29 +154,38 @@ class HTTPTarget(PromptTarget):
             except json.JSONDecodeError:
                 body = request_parts[1]
 
+        if len(http_req_info_line) != 3:
+            raise ValueError("Invalid HTTP request line")
+
         # Capture info from 1st line of raw request
         http_method = http_req_info_line[0]
 
-        http_url_beg = ""
-        http_version = ""
-        if len(http_req_info_line) > 2:
-            http_version = http_req_info_line[2]
-            if self.use_tls is True:
-                http_url_beg = "https://"
-            else:
-                http_url_beg = "http://"
+        url_path = http_req_info_line[1]
+        full_url = self._infer_full_url_from_host(path=url_path, headers_dict=headers_dict)
 
-        url = ""
-        if http_url_beg and "http" not in http_req_info_line[1]:
-            url = http_url_beg
-        if "Host" in headers_dict.keys():
-            url += headers_dict["Host"]
-        url += http_req_info_line[1]
+        http_version = http_req_info_line[2]
 
-        return headers_dict, body, url, http_method, http_version
+        return headers_dict, body, full_url, http_method, http_version
+
+    def _infer_full_url_from_host(
+        self,
+        path: str,
+        headers_dict: dict[str, str],
+    ) -> str:
+        # If path is already a full URL, return it as is
+        path = path.lower()
+        if path.startswith(("http://", "https://")):
+            return path
+
+        http_protocol = "http://"
+        if self.use_tls is True:
+            http_protocol = "https://"
+
+        host = headers_dict["host"]
+        return f"{http_protocol}{host}{path}"
 
     def _validate_request(self, *, prompt_request: PromptRequestResponse) -> None:
-        request_pieces: list[PromptRequestPiece] = prompt_request.request_pieces
+        request_pieces: Sequence[PromptRequestPiece] = prompt_request.request_pieces
 
         if len(request_pieces) != 1:
             raise ValueError("This target only supports a single prompt request piece.")

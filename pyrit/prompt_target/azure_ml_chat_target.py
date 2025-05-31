@@ -2,15 +2,23 @@
 # Licensed under the MIT license.
 
 import logging
-from httpx import HTTPStatusError
 from typing import Optional
+
+from httpx import HTTPStatusError
 
 from pyrit.chat_message_normalizer import ChatMessageNop, ChatMessageNormalizer
 from pyrit.common import default_values, net_utility
-from pyrit.exceptions import EmptyResponseException, RateLimitException
-from pyrit.exceptions import handle_bad_request_exception, pyrit_target_retry
-from pyrit.models import ChatMessage, PromptRequestResponse
-from pyrit.models import construct_response_from_request
+from pyrit.exceptions import (
+    EmptyResponseException,
+    RateLimitException,
+    handle_bad_request_exception,
+    pyrit_target_retry,
+)
+from pyrit.models import (
+    ChatMessage,
+    PromptRequestResponse,
+    construct_response_from_request,
+)
 from pyrit.prompt_target import PromptChatTarget, limit_requests_per_minute
 
 logger = logging.getLogger(__name__)
@@ -149,7 +157,7 @@ class AzureMLChatTarget(PromptChatTarget):
         self._validate_request(prompt_request=prompt_request)
         request = prompt_request.request_pieces[0]
 
-        messages = self._memory.get_chat_messages_with_conversation_id(conversation_id=request.conversation_id)
+        messages = list(self._memory.get_chat_messages_with_conversation_id(conversation_id=request.conversation_id))
 
         messages.append(request.to_chat_message())
 
@@ -173,10 +181,7 @@ class AzureMLChatTarget(PromptChatTarget):
             else:
                 raise hse
 
-        logger.info(
-            "Received the following response from the prompt target"
-            + f"{response_entry.request_pieces[0].converted_value}"
-        )
+        logger.info("Received the following response from the prompt target" + f"{response_entry.get_value()}")
         return response_entry
 
     @pyrit_target_retry
@@ -205,7 +210,15 @@ class AzureMLChatTarget(PromptChatTarget):
             endpoint_uri=self._endpoint, method="POST", request_body=payload, headers=headers
         )
 
-        return response.json()["output"]
+        try:
+            return response.json()["output"]
+        except Exception as e:
+            if response.json() == {}:
+                raise EmptyResponseException(message="The chat returned an empty response.")
+            raise e(
+                f"Exception obtaining response from the target. Returned response: {response.json()}. "
+                + f"Exception: {str(e)}"  # type: ignore
+            )
 
     def _construct_http_body(
         self,
@@ -255,3 +268,7 @@ class AzureMLChatTarget(PromptChatTarget):
 
         if prompt_request.request_pieces[0].converted_value_data_type != "text":
             raise ValueError("This target only supports text prompt input.")
+
+    def is_json_response_supported(self) -> bool:
+        """Indicates that this target supports JSON response format."""
+        return False

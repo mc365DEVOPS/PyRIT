@@ -1,14 +1,17 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-import logging
 import json
-from typing import Any, Literal, Optional
+import logging
+from typing import Any, Literal, Optional, Sequence
 
+from pyrit.common import default_values, net_utility
+from pyrit.models import (
+    PromptRequestPiece,
+    PromptRequestResponse,
+    construct_response_from_request,
+)
 from pyrit.prompt_target import PromptTarget, limit_requests_per_minute
-from pyrit.common import default_values
-from pyrit.common import net_utility
-from pyrit.models import construct_response_from_request, PromptRequestPiece, PromptRequestResponse
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +124,7 @@ class PromptShieldTarget(PromptTarget):
         return response_entry
 
     def _validate_request(self, *, prompt_request: PromptRequestResponse) -> None:
-        request_pieces: list[PromptRequestPiece] = prompt_request.request_pieces
+        request_pieces: Sequence[PromptRequestPiece] = prompt_request.request_pieces
 
         if len(request_pieces) != 1:
             raise ValueError("This target only supports a single prompt request piece.")
